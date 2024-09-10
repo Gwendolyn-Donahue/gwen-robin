@@ -1,0 +1,43 @@
+---
+title: "Pearse 1974 study"
+author: "Gwendolyn Donahue"
+date: "2024-09-09"
+output: html_document
+---
+# setup
+## packages
+```{r}
+library(worrms)
+library(tidyverse)
+library(readxl)
+```
+## function to update name
+```{r}
+# Step 3: Function to get the updated name from WoRMS
+get_current_name <- function(name) {
+  # Replace underscores with spaces to format the species name correctly
+  formatted_name <- str_replace(name, "_", " ")
+  
+  # Use wm_records_name() to get species records from WoRMS
+  records <- wm_records_name(formatted_name)
+  
+  if (length(records) > 0) {
+    # If a valid name exists, return it; otherwise, return the original scientific name
+    valid_name <- records$valid_name[1]
+    return(valid_name %||% records$scientificname[1])
+  } else {
+    return(NA)  # Return NA if no record found
+  }
+}
+```
+# read in df
+```{r}
+pearse_df <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/Pearse1974/Pearse1974_species.xlsx")
+```
+# update names
+```{r}
+pearse_df_updatednames <- pearse_df %>%
+  mutate(updated_name = map_chr(Pearse_species, get_current_name))
+```
+
+

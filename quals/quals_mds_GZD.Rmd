@@ -1,0 +1,392 @@
+---
+title: "quals_mds_GZD"
+author: "Gwendolyn Donahue"
+date: "2024-09-09"
+output: html_document
+---
+# setup
+## libraries
+```{r}
+library(tidyverse)
+library(readxl)
+library(cowplot)
+library(ggplot2)
+library(vegan)
+library(lubridate)
+```
+## read in data
+```{r}
+qual_raw <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/kfe_qual_data_entry_240823.xlsx")
+```
+## phylum assigning
+```{r}
+phylum_lookup <- tibble(
+  name = c(
+    # Porifera
+    "Leucilla_nuttingi", "Leucosolenia_eleanor", "Craniella_arb", "Polymastia_pachymastia", 
+    "Tethya_californiana", "Acanthancora_cyanocrypta",
+    
+    # Cnideria
+    "Anthopleura_artemisia", "Anthopleura_sola", "Anthopleura_xanthogrammica", 
+    "Cribrinopsis_albopunctata", "Urticina_piscivora", "Urticina_grebelneyi", 
+    "Urticina_spp", "Metridium_farcimen", "Halcampa_decemtentaculata", 
+    "Balanophyllia_elegans", "Paracyathus_stearnsi", "Corynactis_californica", 
+    "Pachycerianthus_fimbriatus", "Virgulariidae_spp", "Stylaster_californicus", 
+    "Aurelia_labiata", "Chrysaora_fuscesens", "Phacellophora_camtschatica",
+    
+    # Mollusca
+    "Cryptochiton_stelleri", "Megathura_crenulata", "Pomaulax_gibberosa", 
+    "Haliotis_kamtschatkana", "Haliotis_rufescens", "Neobernaya_spadicea", 
+    "Ceratostoma_foliatum", "Kelletia_kelletii", "Cadlina_luteomarginata", 
+    "Cadlina_flavomaculata", "Dialula_sandiegensis", "Rostanga_pulchra", 
+    "Doriopsilla_albopunctata", "Doris_montereyensis", "Peltodoris_nobilis", 
+    "Okenia_rosacea", "Triopha_catalinae", "Triopha_maculata", 
+    "Aplysia_californica", "Hermissenda_opalescens", "Phidiana_hiltoni", 
+    "Dendronotus_iris", "Chaceia_ovoidea", "Parapholas_californica", 
+    "Crassodoma_gigantea", "Pododesmus_macrochisma", "Octopus_rubescens",
+    
+    # Annelida
+    "Eudistylia_spp", "Myxicola_spp", "Serpula_columbiana", 
+    "Dodecaceria_concharum", "Dodecaceria_fewkesi", "Diopatra_ornata", 
+    "Salmacina_tribranchiata", "Phragmatopoma_californica",
+    
+    # Arthropoda
+    "Balanus_nubilus", "Cancer_spp", "Loxorhynchus_crispatus", 
+    "Loxorhynchus_grandis", "Pugettia_foliatus", "Pugettia_producta", 
+    "Pugettia_richii", "Scyra_acutifrons",
+    
+    # Bryozoa
+    "Diaperoforma_californica", "Celleporina_robertsoniae", "Celleporella_spp", 
+    "Lagenicella_punctulata", "Hippoporina_insculpta", "Phidolopora_pacifica", 
+    "Watersipora_subtorquata",
+    
+    # Brachiopoda
+    "Terebretalia_transversa",
+    
+    # Echinodermata
+    "Orthasterias_koehleri", "Leptasterias_spp", "Pisaster_brevispinus", 
+    "Pisaster_giganteus", "Pycnopodia_helianthoides", "Dermasterias_imbricata", 
+    "Mediaster_aequalis", "Patiria_miniata", "Henricia_spp", 
+    "Amphiura_arcystata", "Ophioplocus_esmarki", "Ophiopterus_papillosa", 
+    "Ophiothrix_spiculata", "Dendraster_excentricus", "Mesocentrotus_franciscanus", 
+    "Strongylocentrotus_purpuratus", "Apostichopus_californicus", 
+    "Apostichopus_parvimensis", "Cucumaria_miniata", "Cucumaria_piperata", 
+    "Eupentacta_quinquesemita", "Psolus_chitonoides",
+    
+    # Tunicates
+    "Boltenia_villosa", "Cnemidocarpa_finmarkiensis", "Halocynthia_igaboja", 
+    "Pyura_haustor", "Styela_montereyensis", "Clavelina_huntsmani", 
+    "Perophora_annectens", "Pycnoclavella_stanleyi", "Didemnum_carnulentum", 
+    "Didemnum_orange_crust", "Aplidium_solidum", "Polyclinum_planum", 
+    "Cystodytes_lobatus",
+    
+    # Vertebrates
+    "Anarrhicthys_ocellatus", "Rhinogobiops_nicholsii", "Brachyistius_frenatus", 
+    "Cymatogaster_aggregata", "Embiotoca_jacksoni", "Embiotoca_lateralis", 
+    "Hypsurus_caryi", "Phanerodon_furcatus", "Rhacochilus_toxotes", 
+    "Rhacochilus_vacca", "Oxyjulis_californica", "Semicossyphus_pulcher", 
+    "Paralabrax_clathratus", "Girella_nigricans", "Medialuna_californiensis", 
+    "Scorpaenichthys_marmoratus", "Sebastes_atrovirens", "Sebastes_auriculatus", 
+    "Sebastes_carnatus", "Sebastes_caurinus", "Sebastes_chrysomelas", 
+    "Sebastes_flavidus_serranoides", "Sebastes_maliger", "Sebastes_melanops", 
+    "Sebastes_miniatus", "Sebastes_mystinus", "Sebastes_nebulosus", 
+    "Sebastes_paucispinis", "Sebastes_pinniger", "Sebastes_serriceps", 
+    "Hexagrammos_decagrammus", "Ophiodon_elongatus", "Oxylebius_pictus",
+    
+    # Brown algae
+    "Stephanocystis_osmundacea", "Desmarestia_spp", "Alaria_marginata", 
+    "Dictyoneurum_spp", "Egregia_menziesii", "Eisenia_arborea", 
+    "Laminaria_setchellii", "Macrocystis_pyrifera", "Nereocystis_luetkeana", 
+    "Pterygophora_californica",
+    
+    # Red algae
+    "Cryptopleura_spp", "Bossiella_spp", "Calliarthron_spp", 
+    "Callophyllis_spp", "Chondracanthus_corymbiferus", "Fredericqia_chiton", 
+    "Sarcodiotheca_gaudichaudii", "Prionitis_spp", "Plocamium_spp", 
+    "Botryocladia_pseudodichotoma", "Gloiocladia_laciniata", 
+    "Fryeela_gardneri", "Rhodymenia_spp"
+  ),
+  phylum = c(
+    # Porifera
+    rep("Porifera", 6),
+    # Cnideria
+    rep("Cnideria", 18),
+    # Mollusca
+    rep("Mollusca", 27),
+    # Annelida
+    rep("Annelida", 8),
+    # Arthropoda
+    rep("Arthropoda", 8),
+    # Bryozoa
+    rep("Bryozoa", 7),
+    # Brachiopoda
+    rep("Brachiopoda", 1),
+    # Echinodermata
+    rep("Echinodermata", 22),
+    # Tunicates
+    rep("Tunicata", 13),
+    # Vertebrates
+    rep("Vertebrata", 33),
+    # Brown algae
+    rep("Brown_algae", 10),
+    # Red algae
+    rep("Red_algae", 13)
+  )
+)
+```
+
+## arrange sites north to south
+```{r}
+# rank sites from north to south:
+site_order <- tibble(
+  site = c("Harmony Headlands 2", "Harmony Headlands 1", "Outer Buchon 1", 
+           "Inner Buchon 2","Shearwater 1", "Shearwater 2", "Shearwater 4", 
+           "White Rock 1", "White Rock 2","Outer Buchon 2", "Inner Buchon 1", 
+           "Outer Buchon 3", "Jalama"),
+  site_order_n_to_s = c(4, 3, 8, 6, 10, 12, 13, 1, 2, 9, 7, 5, 11))
+```
+
+# clean data
+```{r}
+qual_clean <- qual_raw %>% 
+  # remove averaged rows so whole df is just rank abundance
+  filter(!averaged_nums) %>% 
+  # make 'NA' strings real NAs
+  mutate(across(where(is.character), ~ na_if(.x, "NA"))) %>% 
+  # (confirm this is acceptable...?): replace 'NI's with NAs
+  mutate(across(where(is.character), ~ na_if(.x, "NI"))) %>% 
+  # make necessary columns numeric instead of characters
+  mutate(across(
+    -c(date, site, region, observer, buddy, others_seen, notes_site, notes_other, averaged_nums),
+    as.numeric))
+```
+# subset for CHNMS sites
+```{r}
+qual_CHNMS <- qual_clean %>% 
+  filter(site %in% c("Harmony Headlands 2", "Harmony Headlands 1", 
+                     "Outer Buchon 1", "Inner Buchon 2", "Shearwater 1", 
+                     "Shearwater 2", "Shearwater 4", "White Rock 1", 
+                     "White Rock 2", "Outer Buchon 2", "Inner Buchon 1", 
+                     "Outer Buchon 3", "Jalama"))
+
+qual_CHNMS_limited <- qual_CHNMS %>% 
+  mutate(year = year(date)) %>% 
+  relocate(year, .before = site) %>% 
+  select(-c(date, region, observer, buddy, depth_avg_ft, depth_max_ft,
+            dive_duration_min, visibility_ft, bedrock, boulder, cobble, sand,
+            others_seen, notes_site, notes_other, averaged_nums, site_num_mdsplot))
+```
+# CHNMS plots
+## • MDS plots
+### - mds plot by dive
+```{r}
+qual_CHNMS <- qual_CHNMS %>%
+  mutate(site_num_mdsplot = row_number()) %>% 
+  # create new substrate columns
+  rowwise() %>%
+  mutate(
+    substrate_predominant = case_when(
+      bedrock == 1 ~ "bedrock",
+      boulder == 1 ~ "boulder",
+      cobble == 1 ~ "cobble",
+      sand == 1 ~ "sand",
+      TRUE ~ NA_character_
+    ),
+    substrate_diversity = sum(!is.na(c_across(bedrock:sand)) & c_across(bedrock:sand) != 0)
+  ) %>%
+  ungroup() %>% 
+  relocate(substrate_predominant, .after = sand) %>%
+  relocate(substrate_diversity, .after = substrate_predominant)
+
+
+qual_CHNMS_mds <- qual_CHNMS %>%
+  # select species columns
+  select(Leucilla_nuttingi:Rhodymenia_spp) %>%
+  # CONSIDER CHANGING: replace all NAs (NIs) with 0
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
+  as.matrix() %>%
+  # measure distance for MDS using euclidean
+  vegdist(method = "euclidean") %>%
+  metaMDS(k = 2)
+
+# pull the MDS coords
+mds_scores <- scores(qual_CHNMS_mds) %>%
+  as_tibble(rownames = "site_num_mdsplot") %>%
+  mutate(site_num_mdsplot = as.integer(site_num_mdsplot)) %>%
+  # pull back in columns of interest
+  left_join(qual_CHNMS %>% select(site_num_mdsplot, 
+                                  site, 
+                                  depth_max_ft, visibility_ft,
+                                  substrate_predominant, substrate_diversity), 
+            by = "site_num_mdsplot")
+
+# plot MDS
+ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = site)) +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+### - mds plot by point divisions
+```{r}
+# add column to designate which sites are north of point buchon
+mds_scores_point_designations <- mds_scores %>%
+  mutate(north_buchon = case_when(
+    site == "Harmony Headlands 2" ~ TRUE,
+    site == "Harmony Headlands 1" ~ TRUE,
+    site == "Outer Buchon 1" ~ FALSE,
+    site == "Inner Buchon 2" ~ FALSE,
+    site == "Shearwater 1" ~ FALSE,
+    site == "Shearwater 2" ~ FALSE,
+    site == "Shearwater 4" ~ FALSE,
+    site == "White Rock 1" ~ TRUE,
+    site == "White Rock 2" ~ TRUE,
+    site == "Outer Buchon 2" ~ FALSE,
+    site == "Inner Buchon 1" ~ FALSE,
+    site == "Outer Buchon 3" ~ TRUE,
+    site == "Jalama" ~ FALSE)) %>% 
+  mutate(north_conception = case_when(
+    site == "Harmony Headlands 2" ~ TRUE,
+    site == "Harmony Headlands 1" ~ TRUE,
+    site == "Outer Buchon 1" ~ TRUE,
+    site == "Inner Buchon 2" ~ TRUE,
+    site == "Shearwater 1" ~ TRUE,
+    site == "Shearwater 2" ~ FALSE,
+    site == "Shearwater 4" ~ FALSE,
+    site == "White Rock 1" ~ TRUE,
+    site == "White Rock 2" ~ TRUE,
+    site == "Outer Buchon 2" ~ TRUE,
+    site == "Inner Buchon 1" ~ TRUE,
+    site == "Outer Buchon 3" ~ TRUE,
+    site == "Jalama" ~ TRUE))
+
+# plot MDS divided by point buchon
+ggplot(mds_scores_point_designations, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = north_buchon)) +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS sites '23-'24 (divided by point buchon)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+# plot MDS divided by point conception
+ggplot(mds_scores_point_designations, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = north_conception)) +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS sites '23-'24 (divided by point conception)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+### - mds plot by depth
+```{r}
+ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = depth_max_ft)) +
+  scale_color_gradient(low = "lightsteelblue1", high = "#141c44") +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+
+### - (to do) mds plot by substrate diversity
+```{r}
+ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = substrate_diversity)) +
+  scale_color_gradient(low = "pink", high = "#141c44") +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+### - mds plot by visibility
+```{r}
+ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = visibility_ft)) +
+  scale_color_gradient(low = "lightgrey", high = "black") +
+  theme_minimal() +
+  labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+## • Abundance plots
+### - organize data
+```{r}
+# set up long df (each row is one species at one dive)
+qual_CHNMS_abundances <- qual_CHNMS_limited %>% 
+  pivot_longer(cols = 
+                 starts_with("Leucilla_nuttingi"):
+                 ends_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "abundance") %>% 
+  # make site a factored column so we can arrange N to S
+  left_join(site_order, by = "site") %>%
+  mutate(site = factor(site, 
+                       levels = site_order$site[
+                         order(site_order$site_order_n_to_s)])) %>% 
+  # add phylum column
+  left_join(phylum_lookup, by = c("species" = "name"))
+
+# filter to 2024
+qual_CHNMS_abundances_2024 <- qual_CHNMS_abundances %>% 
+  filter(year == 2024)
+```
+### - basic abundance plot
+```{r}
+ggplot(qual_CHNMS_abundances_2024, aes(x = site, y = abundance, fill = species)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Species Abundance by Sites (2024)",
+       x = "Site (arranged N to S)",
+       y = "Species Abundance") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "none")
+```
+
+### - basic phyla abundance plot
+```{r}
+ggplot(qual_CHNMS_abundances_2024, aes(x = site, y = abundance, fill = phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Phyla Abundance by Sites (2024)",
+       x = "Site (arranged N to S)",
+       y = "Phylum Abundance") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "right")
+```
+
+### - phyla abundance heatmap plot
+```{r}
+ggplot(qual_CHNMS_abundances_2024, 
+       aes(x = site, y = phylum, fill = abundance)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", 
+                      high = "red", 
+                      na.value = "lightgrey", # specify color for NAs
+                      name = "Rank Abundance") +
+  theme_minimal() +
+  labs(title = "Phyla Relative Abundance Heatmap (2024)", 
+       x = "Site (N to S)", 
+       y = "Phylum") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme(axis.text.y = element_text(size = 8))
+```
+## • Evenness-Richness plot
+### - prep data
+```{r}
+site_metrics_2024 <- qual_CHNMS_abundances_2024 %>%
+  filter(abundance > 0) %>%
+  group_by(site) %>%
+  summarize(
+    # calculate species richness (# unique species observed)
+    richness = n_distinct(species), 
+    # calculate species diversity 
+    shannon_diversity = -sum(
+      (abundance / sum(abundance)) * log(abundance / sum(abundance) + 1e-10), 
+      na.rm = TRUE), 
+    # calculate evenness (species diversity normalized by richness)
+    evenness = shannon_diversity / log(richness + 1e-10))
+```
+
+### - plot
+```{r}
+ggplot(site_metrics_2024, 
+       aes(x = richness, y = evenness)) +
+  geom_point(aes(color = site), size = 3) +
+  labs(
+    title = "2024 CHNMS Overview of Sites (qual sheets)",
+    x = "Species Richness",
+    y = "Evenness"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8)
+  )
+```
+
