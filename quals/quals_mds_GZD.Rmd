@@ -13,7 +13,11 @@ library(cowplot)
 library(ggplot2)
 library(vegan)
 library(lubridate)
+library(RColorBrewer)
+library(leaflet)
+library(htmlwidgets)
 ```
+
 ## read in data
 ```{r}
 qual_raw <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/kfe_qual_data_entry_240823.xlsx")
@@ -137,13 +141,18 @@ phylum_lookup <- tibble(
 
 ## arrange sites north to south
 ```{r}
-# rank sites from north to south:
+# rank CHNMS sites from north to south:
 site_order <- tibble(
   site = c("Harmony Headlands 2", "Harmony Headlands 1", "Outer Buchon 1", 
            "Inner Buchon 2","Shearwater 1", "Shearwater 2", "Shearwater 4", 
            "White Rock 1", "White Rock 2","Outer Buchon 2", "Inner Buchon 1", 
            "Outer Buchon 3", "Jalama"),
   site_order_n_to_s = c(4, 3, 8, 6, 10, 12, 13, 1, 2, 9, 7, 5, 11))
+
+all_site_order <- tibble(
+  site = c("Shale Beds", "Monterey Wharf", "HMS90", "HMS100", "HMS Barren (Bird Rock)", "Otter Cove", "Carmel Pinnacles - Inner", "Carmel River State Beach", "Monastery-North", "Monastery-South", "Point Lobos", "White Rock 1", "White Rock 2", "Harmony Headlands 1", "Harmony Headlands 2", "Outer Buchon 3", "Inner Buchon 2", "Inner Buchon 1", "Outer Buchon 1", "Outer Buchon 2", "Shearwater 1", "Jalama", "Shearwater 2", "Shearwater 4"),
+  all_site_order_up_to_down = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24)
+)
 ```
 
 # clean data
@@ -158,7 +167,8 @@ qual_clean <- qual_raw %>%
   # make necessary columns numeric instead of characters
   mutate(across(
     -c(date, site, region, observer, buddy, others_seen, notes_site, notes_other, averaged_nums),
-    as.numeric))
+    as.numeric)) %>% 
+  select(-averaged_nums)
 ```
 # subset for CHNMS sites
 ```{r}
@@ -177,8 +187,8 @@ qual_CHNMS_limited <- qual_CHNMS %>%
             others_seen, notes_site, notes_other, averaged_nums, site_num_mdsplot))
 ```
 # CHNMS plots
-## • MDS plots
-### - mds plot by dive
+## • MDS plots including all data
+### - 1. set up mds clustering
 ```{r}
 qual_CHNMS <- qual_CHNMS %>%
   mutate(site_num_mdsplot = row_number()) %>% 
@@ -205,9 +215,14 @@ qual_CHNMS_mds <- qual_CHNMS %>%
   # CONSIDER CHANGING: replace all NAs (NIs) with 0
   mutate(across(where(is.numeric), ~ replace_na(., 0))) %>%
   as.matrix() %>%
-  # measure distance for MDS using euclidean
-  vegdist(method = "euclidean") %>%
+  # measure distance for MDS using *bray
+  # bray allows you to have lots of 0s
+  # euclidean assumes some linear relationship (good for quantitative traits)
+  vegdist(method = "bray") %>%
   metaMDS(k = 2)
+
+# print stress value (as low as possible; needs to be under 0.2)
+qual_CHNMS_mds$stress
 
 # pull the MDS coords
 mds_scores <- scores(qual_CHNMS_mds) %>%
@@ -219,14 +234,21 @@ mds_scores <- scores(qual_CHNMS_mds) %>%
                                   depth_max_ft, visibility_ft,
                                   substrate_predominant, substrate_diversity), 
             by = "site_num_mdsplot")
-
+```
+### - mds by site
+```{r}
 # plot MDS
 ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
   geom_point(aes(color = site)) +
   theme_minimal() +
   labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
 ```
-### - mds plot by point divisions
+### - mds by grouped sites
+```{r}
+# all HH grouped; all IB grouped; all OB grouped, etc.
+```
+
+### - mds by point divisions
 ```{r}
 # add column to designate which sites are north of point buchon
 mds_scores_point_designations <- mds_scores %>%
@@ -270,7 +292,7 @@ ggplot(mds_scores_point_designations, aes(x = NMDS1, y = NMDS2)) +
   theme_minimal() +
   labs(title = "NMDS Plot of CHNMS sites '23-'24 (divided by point conception)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
 ```
-### - mds plot by depth
+### - mds  by depth
 ```{r}
 ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
   geom_point(aes(color = depth_max_ft)) +
@@ -279,7 +301,7 @@ ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
   labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
 ```
 
-### - (to do) mds plot by substrate diversity
+### - mds by substrate diversity
 ```{r}
 ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
   geom_point(aes(color = substrate_diversity)) +
@@ -291,12 +313,93 @@ ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
 ```{r}
 ggplot(mds_scores, aes(x = NMDS1, y = NMDS2)) +
   geom_point(aes(color = visibility_ft)) +
-  scale_color_gradient(low = "lightgrey", high = "black") +
+  scale_color_gradient(low = "#D2B48C", high = "#003152") +
   theme_minimal() +
   labs(title = "NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
 ```
+## • MDS plots (scorched earth version)
+### - 1. set up mds clustering
+```{r}
+# scorch (remove where necessary because of NIs)
+qual_scorchedCHNMS <- qual_CHNMS %>%
+  # remove white rock 2
+  filter(site != "White Rock 2") 
+
+# save columns to add back in before removing 
+save_scorched_columns <- qual_scorchedCHNMS %>%
+  select(site, 
+         depth_max_ft, 
+         visibility_ft,
+         substrate_predominant, 
+         substrate_diversity) %>%
+  mutate(site_num_scorched_mdsplot = row_number())
+
+# now remove all columns not going into the matrix
+qual_scorchedCHNMS <- qual_scorchedCHNMS %>% 
+  # select all species columns
+  select(Leucilla_nuttingi:Rhodymenia_spp) %>%
+  # remove columns where there were NIs we don't feel comfortable subbing 0 in
+  select(-c(Pomaulax_gibberosa, 
+            #crabs
+            Cancer_spp, Loxorhynchus_crispatus,
+            Loxorhynchus_grandis, Pugettia_foliatus, Pugettia_producta,
+            Pugettia_richii, Scyra_acutifrons, 
+            #bryozoans
+            Diaperoforma_californica,Celleporina_robertsoniae,
+            Celleporella_spp,Lagenicella_punctulata,Hippoporina_insculpta,
+            Phidolopora_pacifica,Watersipora_subtorquata,
+            #psolus
+            Psolus_chitonoides,
+            #red algaes
+            Cryptopleura_spp,Bossiella_spp,Calliarthron_spp,
+            Callophyllis_spp,Chondracanthus_corymbiferus,Fredericqia_chiton,
+            Sarcodiotheca_gaudichaudii,Prionitis_spp,Plocamium_spp,
+            Botryocladia_pseudodichotoma,Gloiocladia_laciniata,
+            Fryeela_gardneri,Rhodymenia_spp,
+            #polyclinum
+            Polyclinum_planum,Acanthancora_cyanocrypta, Urticina_grebelneyi, Corynactis_californica, Cadlina_flavomaculata, Rostanga_pulchra, Peltodoris_nobilis, Triopha_maculata, Phidiana_hiltoni, Pododesmus_macrochisma, Serpula_columbiana, Salmacina_tribranchiata, Phragmatopoma_californica, Terebretalia_transversa, Boltenia_villosa, Cnemidocarpa_finmarkiensis, Halocynthia_igaboja, Pyura_haustor, Styela_montereyensis, Clavelina_huntsmani, Perophora_annectens, Pycnoclavella_stanleyi, Didemnum_carnulentum,Didemnum_orange_crust)) %>% 
+  # replace remaining NAs (NIs) with 0
+    # other NAs:
+      # Acanthancora_cyanocrypta, Urticina_grebelneyi, Corynactis_californica, Cadlina_flavomaculata, Rostanga_pulchra, Peltodoris_nobilis, Triopha_maculata, Phidiana_hiltoni, Pododesmus_macrochisma, Serpula_columbiana, Salmacina_tribranchiata, Phragmatopoma_californica, Terebretalia_transversa, Boltenia_villosa, Cnemidocarpa_finmarkiensis, Halocynthia_igaboja, Pyura_haustor, Styela_montereyensis, Clavelina_huntsmani, Perophora_annectens, Pycnoclavella_stanleyi, Didemnum_carnulentum,Didemnum_orange_crust
+  mutate(across(where(is.numeric), ~ replace_na(., 0)))
+
+# create MDS matrix
+qual_scorchedCHNMS_mds <- qual_scorchedCHNMS %>% 
+  as.matrix() %>%
+  vegdist(method = "bray") %>%
+  metaMDS(k = 2)
+
+# print stress value (as low as possible; needs to be under 0.2)
+qual_scorchedCHNMS_mds$stress
+
+# pull the MDS coords
+scorched_mds_scores <- scores(qual_scorchedCHNMS_mds) %>%
+  as_tibble(rownames = "site_num_scorched_mdsplot") %>%
+  mutate(site_num_scorched_mdsplot = as.integer(site_num_scorched_mdsplot)) %>%
+  # pull back in columns of interest
+  left_join(save_scorched_columns %>% select(
+    site_num_scorched_mdsplot, 
+    site, 
+    depth_max_ft, visibility_ft,
+    substrate_diversity), 
+    by = "site_num_scorched_mdsplot")
+```
+### - mds by site
+```{r}
+ggplot(scorched_mds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_point(aes(color = site)) +
+  theme_minimal() +
+  labs(title = "scorched NMDS Plot of CHNMS dives (2023-2024)", x = "NMDS Dimension 1", y = "NMDS Dimension 2")
+```
+
+### - *TO DO
+```{r}
+# colored by geography (rough area) 
+# different shaped points to show if site is in an MPA or not
+```
+
 ## • Abundance plots
-### - organize data
+### - 1. set up data
 ```{r}
 # set up long df (each row is one species at one dive)
 qual_CHNMS_abundances <- qual_CHNMS_limited %>% 
@@ -339,22 +442,6 @@ ggplot(qual_CHNMS_abundances_2024, aes(x = site, y = abundance, fill = phylum)) 
         legend.position = "right")
 ```
 
-### - phyla abundance heatmap plot
-```{r}
-ggplot(qual_CHNMS_abundances_2024, 
-       aes(x = site, y = phylum, fill = abundance)) +
-  geom_tile() +
-  scale_fill_gradient(low = "white", 
-                      high = "red", 
-                      na.value = "lightgrey", # specify color for NAs
-                      name = "Rank Abundance") +
-  theme_minimal() +
-  labs(title = "Phyla Relative Abundance Heatmap (2024)", 
-       x = "Site (N to S)", 
-       y = "Phylum") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  theme(axis.text.y = element_text(size = 8))
-```
 ## • Evenness-Richness plot
 ### - prep data
 ```{r}
@@ -389,4 +476,296 @@ ggplot(site_metrics_2024,
     axis.text.y = element_text(size = 8)
   )
 ```
+## • Richness (# sp per phylum)
+### 1. set up data
+```{r}
+# prep
+CHNMS_2024_site_phyla <- qual_CHNMS_abundances_2024 %>%
+  select(site, phylum) %>%
+  distinct() %>%
+  complete(site, phylum)
 
+# calc richness (total number of species per phylum observed per site)
+temp_CHNMS_2024_richness_df <- qual_CHNMS_abundances_2024 %>%
+  # use presence/absence of each observation
+  filter(abundance > 0) %>%
+  group_by(site, phylum) %>%
+  # find num unique species per site and phylum
+  summarize(richness = n_distinct(species), .groups = 'drop')
+
+# combine to keep 0s if that phylum wasn't observed at that site
+CHNMS_2024_richness <- CHNMS_2024_site_phyla %>%
+  left_join(temp_CHNMS_2024_richness_df, by = c("site", "phylum")) %>%
+  replace_na(list(richness = 0)) %>% 
+  filter(site != "White Rock 2") %>% #too many NIs
+  # no qual sheets in 2024:
+  filter(site != "Shearwater 1") %>% 
+  filter(site != "Shearwater 2") %>% 
+  # consider leaving in? but we saw none
+  filter(phylum != "Brachiopoda")
+```
+
+### - heatmap plot
+```{r}
+ggplot(CHNMS_2024_richness, 
+       aes(x = site, y = phylum, fill = richness)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", 
+                      high = "red", 
+                      na.value = "lightgrey", # specify color for NAs
+                      name = "# Species per Phylum") +
+  theme_minimal() +
+  labs(title = "Species Richness Heatmap (2024)", 
+       x = "Site (N to S)", 
+       y = "Phylum") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme(axis.text.y = element_text(size = 8))
+```
+### - stacked bar plot
+```{r}
+# create color palette (11 colors)
+colors_phyla <- brewer.pal(11, "Paired")
+
+# plot
+ggplot(CHNMS_2024_richness, 
+       aes(x = site, y = richness, fill = phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  #get rid of gap between bars and x axis
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))+
+  labs(title = "Species Richness (2024)",
+       x = "Site (arranged N to S)",
+       y = "# Species Present") +
+  scale_fill_manual(values = colors_phyla) +
+  theme_half_open() +
+  background_grid() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "right",
+        # make grid lines thinner
+        panel.grid.major = element_line(color = "grey80", linewidth = 0.2), 
+        panel.grid.minor = element_line(color = "grey90", linewidth = 0.2))
+```
+## • TO DO: Spatial turnover plot
+```{r}
+
+```
+## • TO DO: kelp vs urchins (look at HH and Buchon)
+# All qual sheets (both CHNMS and Monterey and Carmel)
+## • set up data
+### - general cleaning
+```{r}
+qual_clean <- qual_clean %>% 
+  select(-c(depth_avg_ft, others_seen, notes_site, notes_other)) %>% 
+  rowwise() %>%
+  mutate(
+    # fill this new column with whichever substrate was ranked '1'
+    substrate_predominant = case_when(
+      bedrock == 1 ~ "bedrock",
+      boulder == 1 ~ "boulder",
+      cobble == 1 ~ "cobble",
+      sand == 1 ~ "sand",
+      TRUE ~ NA_character_),
+    # fill this new column with the number of substrates given a number
+    substrate_diversity = sum(!is.na(c_across(bedrock:sand)) & 
+                                c_across(bedrock:sand) != 0)) %>%
+  ungroup() %>% 
+  relocate(substrate_predominant, .after = sand) %>%
+  relocate(substrate_diversity, .after = substrate_predominant)
+
+# consider changing
+# average qual sheets if the sites are the same
+qual_clean_averaged <- qual_clean %>% 
+  group_by(site) %>%
+  summarise(
+    across(where(is.numeric), ~ round(mean(., na.rm = TRUE))),
+    # keep first instances of character columns (region and main substrate)
+    region = first(region),
+    substrate_predominant = first(substrate_predominant),
+    .groups = "drop")
+```
+### - nmds matrix setup
+```{r}
+
+```
+### - richness (presence / absence) setup
+```{r}
+# first make long df
+qual_abundances <- qual_clean_averaged %>% 
+  pivot_longer(cols = 
+                 starts_with("Leucilla_nuttingi"):
+                 ends_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "abundance") %>% 
+  # make site a factored column so we can arrange N to S
+  left_join(all_site_order, by = "site") %>%
+  mutate(site = factor(site, 
+                       levels = all_site_order$site[
+                         order(all_site_order$all_site_order_up_to_down)])) %>% 
+  # add phylum column
+  left_join(phylum_lookup, by = c("species" = "name")) %>% 
+  select(-c(bedrock, boulder, cobble, sand))
+
+# next find species richness
+# 1. prep
+qual_site_phyla <- qual_abundances %>%
+  select(site, phylum) %>%
+  distinct() %>%
+  complete(site, phylum)
+# 2. calc richness (total number of species per phylum observed per site)
+temp_qual_richness_df <- qual_abundances %>%
+  filter(abundance > 0) %>%
+  group_by(site, phylum) %>%
+  summarize(richness = n_distinct(species), .groups = 'drop')
+# 3. combine to keep 0s if that phylum wasn't observed at that site
+qual_richness <- qual_site_phyla %>%
+  left_join(temp_qual_richness_df, by = c("site", "phylum")) %>%
+  replace_na(list(richness = 0))
+```
+## • MDS plots
+```{r}
+
+```
+
+## • Species richness plots
+```{r}
+# create color palette (11 colors)
+colors_12_phyla <- brewer.pal(12, "Paired")
+
+# plot
+ggplot(qual_richness, 
+       aes(x = site, y = richness, fill = phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  #get rid of gap between bars and x axis
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))+
+  labs(title = "Species Richness (all quals)",
+       x = "Site (arranged upcoast to downcoast)",
+       y = "# Species Present") +
+  scale_fill_manual(values = colors_12_phyla) +
+  theme_half_open() +
+  background_grid() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "right",
+        # make grid lines thinner
+        panel.grid.major = element_line(color = "grey80", linewidth = 0.2), 
+        panel.grid.minor = element_line(color = "grey90", linewidth = 0.2))
+```
+# Map plots
+##• set up data (site level data)
+```{r}
+# read in coord data
+qual_coords <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/qual_coords_estimate_240911.xlsx")
+
+qual_coords <- qual_coords %>% 
+  # make numeric not characters
+  mutate(across(c(latitude, longitude),as.numeric))
+
+qual_coords_norepeats <- qual_coords %>% 
+  # keep only one coord per site (right now just keeping first since they're the same)
+  group_by(site) %>%
+  summarise(latitude = first(latitude),
+            longitude = first(longitude))
+
+# merge with working df
+qual_richness_coords <- qual_richness %>% 
+  left_join(qual_coords_norepeats %>% select(site, latitude, longitude,), 
+            by = "site")
+
+# richness summary df
+# add columns for # phyla present, most speciose phylum at that site?
+site_richness_summary <- qual_richness_coords %>% 
+  group_by(site, latitude, longitude) %>%
+  summarize(total_richness = sum(richness, na.rm = TRUE))
+
+# add in other site info of interest
+site_final_summary <- site_richness_summary %>% 
+  
+```
+## • all qual sheets
+```{r}
+# create richness color palette
+colors_richness <- colorNumeric(
+  palette = "Spectral", 
+  domain = site_richness_summary$total_richness)
+
+# plot
+leaflet(data = site_richness_summary) %>%
+  addTiles() %>%  
+  addCircleMarkers(~longitude, ~latitude, 
+                   color = ~colors_richness(total_richness), 
+                   fillOpacity = 1, radius = 2,
+                   popup = ~paste(site, "species richness = ", total_richness)) %>%
+  addLegend(pal = colors_richness, values = ~site_richness_summary$total_richness, 
+            title = "Species richness",
+            position = "topright") %>%
+  addScaleBar(position = 'bottomleft')
+```
+## • CHNMS map
+```{r}
+# pull in coords for non-diving sites too
+chnms_site_notes <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/CHNMS_Site_Notes.xlsx")
+
+chnms_site_notes_filtered <- chnms_site_notes %>% 
+  # temporarily sub in white rock coords
+  mutate(Latitude_2023 = ifelse(Site_name %in% c("White_Rock_1", "White_Rock_2"), 
+                                Latitude_2024, Latitude_2023),
+         Longitude_2023 = ifelse(Site_name %in% c("White_Rock_1", "White_Rock_2"), 
+                                 Longitude_2024, Longitude_2023)) %>% 
+  # select columns of interest
+  select(c("Site_name", 
+           "Dive_site",
+           "Latitude_2023", "Longitude_2023", 
+           "Protected_area_2024", 
+           "Depth_avg", 
+           "2024_data_collected"))
+```
+
+```{r}
+# leaflet note: can't change shape directly
+# --> means you can either have different shapes or colors but not both
+
+# Subset data
+chnms_protected_areas <- chnms_site_notes_filtered %>% filter(Protected_area_2024 == TRUE)
+chnms_non_protected_areas <- chnms_site_notes_filtered %>% filter(Protected_area_2024 == FALSE)
+
+getColor <- function(Dive_site) {
+  ifelse(Dive_site == TRUE, "#08306b", "black")}
+
+leaflet() %>%
+  addTiles() %>%
+  
+  # protected sites: solid circle in the middle of point
+  addCircleMarkers(
+    data = chnms_protected_areas,
+    lng = ~as.numeric(Longitude_2023), lat = ~as.numeric(Latitude_2023), 
+    fillOpacity = 2, radius = 2, # Slightly larger to differentiate
+    color = ~getColor(Dive_site),
+    popup = ~paste0("<b>", Site_name, #bolded
+                    "</b><br/>",#line break
+                    "Data collected in Fall August 2024: ", `2024_data_collected`)) %>%
+  
+  # non-protected sites: no solid circle in the middle of point
+  addCircleMarkers(
+    data = chnms_non_protected_areas,
+    lng = ~as.numeric(Longitude_2023), lat = ~as.numeric(Latitude_2023), 
+    fillOpacity = 0.01, radius = 2, 
+    color = ~getColor(Dive_site),
+    popup = ~paste0("<b>", Site_name,
+                    "</b><br/>",
+                    "Data collected in Fall August 2024: ", `2024_data_collected`)) %>%
+  
+  addLegend(
+    position = "topright",     
+    colors = c("#08306b", "black"), labels = c("Dive Site", "Non-Dive Site"), 
+    title = htmltools::HTML(
+    "<strong>Site Type</strong>
+    <br/>
+    <span style='font-size:10px;
+    '>Note: Solid center indicates site is in a protected area </span>"), 
+    opacity = 1
+  ) %>% 
+  
+  addScaleBar(position = 'bottomleft')
+```
+
+# NOTES:
+## possible to-dos
+- make figures for fraction (or %) observed instead of species richness
