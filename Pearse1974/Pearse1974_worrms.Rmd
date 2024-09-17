@@ -39,5 +39,7 @@ pearse_df <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/Pea
 pearse_df_updatednames <- pearse_df %>%
   mutate(updated_name = map_chr(Pearse_species, get_current_name))
 ```
-
+# to do:
+- make matrix of what they found and when
+- overlay what we've seen so we can identify the gaps and hunt for them next dive
 

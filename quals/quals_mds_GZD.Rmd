@@ -16,6 +16,7 @@ library(lubridate)
 library(RColorBrewer)
 library(leaflet)
 library(htmlwidgets)
+library(iNEXT)
 ```
 
 ## read in data
@@ -184,7 +185,7 @@ qual_CHNMS_limited <- qual_CHNMS %>%
   relocate(year, .before = site) %>% 
   select(-c(date, region, observer, buddy, depth_avg_ft, depth_max_ft,
             dive_duration_min, visibility_ft, bedrock, boulder, cobble, sand,
-            others_seen, notes_site, notes_other, averaged_nums, site_num_mdsplot))
+            others_seen, notes_site, notes_other))
 ```
 # CHNMS plots
 ## • MDS plots including all data
@@ -371,6 +372,10 @@ qual_scorchedCHNMS_mds <- qual_scorchedCHNMS %>%
 
 # print stress value (as low as possible; needs to be under 0.2)
 qual_scorchedCHNMS_mds$stress
+##  no NIs removed --> stress=0.168
+##  pomaulax, psolus, crabs, bryozoans removed --> stress=0.179
+##  above + red algae removed --> stress=0.171
+##  above + polyclinum removed --> stress=0.170
 
 # pull the MDS coords
 scorched_mds_scores <- scores(qual_scorchedCHNMS_mds) %>%
@@ -674,9 +679,6 @@ qual_richness_coords <- qual_richness %>%
 site_richness_summary <- qual_richness_coords %>% 
   group_by(site, latitude, longitude) %>%
   summarize(total_richness = sum(richness, na.rm = TRUE))
-
-# add in other site info of interest
-site_final_summary <- site_richness_summary %>% 
   
 ```
 ## • all qual sheets
@@ -727,26 +729,27 @@ chnms_protected_areas <- chnms_site_notes_filtered %>% filter(Protected_area_202
 chnms_non_protected_areas <- chnms_site_notes_filtered %>% filter(Protected_area_2024 == FALSE)
 
 getColor <- function(Dive_site) {
-  ifelse(Dive_site == TRUE, "#08306b", "black")}
+  ifelse(Dive_site == TRUE, "#08306b", "#896F8C")}
 
-leaflet() %>%
+# plot
+chnms_map <- leaflet() %>%
   addTiles() %>%
   
-  # protected sites: solid circle in the middle of point
+  # protected sites: solid point
   addCircleMarkers(
     data = chnms_protected_areas,
     lng = ~as.numeric(Longitude_2023), lat = ~as.numeric(Latitude_2023), 
-    fillOpacity = 2, radius = 2, # Slightly larger to differentiate
+    fillOpacity = 2, radius = 4,opacity = 1,
     color = ~getColor(Dive_site),
     popup = ~paste0("<b>", Site_name, #bolded
                     "</b><br/>",#line break
                     "Data collected in Fall August 2024: ", `2024_data_collected`)) %>%
   
-  # non-protected sites: no solid circle in the middle of point
+  # non-protected sites: transparent point
   addCircleMarkers(
     data = chnms_non_protected_areas,
     lng = ~as.numeric(Longitude_2023), lat = ~as.numeric(Latitude_2023), 
-    fillOpacity = 0.01, radius = 2, 
+    fillOpacity = 0.5, radius = 5.5, weight = 3, opacity = 1, #dark border
     color = ~getColor(Dive_site),
     popup = ~paste0("<b>", Site_name,
                     "</b><br/>",
@@ -754,18 +757,158 @@ leaflet() %>%
   
   addLegend(
     position = "topright",     
-    colors = c("#08306b", "black"), labels = c("Dive Site", "Non-Dive Site"), 
+    colors = c("#08306b", "#896F8C"), labels = c("Dive Site", "Non-Dive Site"), 
     title = htmltools::HTML(
     "<strong>Site Type</strong>
     <br/>
     <span style='font-size:10px;
-    '>Note: Solid center indicates site is in a protected area </span>"), 
+    '>Note: Solid point indicates the site is in a protected area </span>"), 
     opacity = 1
   ) %>% 
   
   addScaleBar(position = 'bottomleft')
+
+# export
+saveWidget(chnms_map, file = "chnms_map.html", selfcontained = TRUE)
+```
+# Species accumulation curves
+## • set up data
+```{r}
+# convert to presence/absence
+qual_presence_absence <- qual_clean %>% 
+  mutate(across(Leucilla_nuttingi:Rhodymenia_spp, ~ ifelse(. > 0, 1, 0))) %>% 
+  mutate(across(Leucilla_nuttingi:Rhodymenia_spp, ~ replace_na(., 0))) %>% 
+  rowwise() %>%
+  mutate(dive_richness = sum(c_across(Leucilla_nuttingi:Rhodymenia_spp), 
+                              na.rm = TRUE)) %>%
+  ungroup()%>%
+  mutate(dive_id = row_number())
+
+# to have
+dive_summary <- test_qual_long %>%
+  group_by(region, dive_id) %>%
+  summarize(dive_richness = sum(presence), .groups = 'drop')
+
+
+# just make 4 dfs, one per region 
+# prep for incidence_raw format
+# each row is a species, each column is a dive
+carmel_pres_abs_matrix <- qual_presence_absence %>%
+  filter(region == "Carmel") %>%
+  select(region, starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp")) %>% 
+  mutate(dive_number = row_number()) %>% 
+  pivot_longer(cols = starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "presence_absence") %>% 
+  pivot_wider(names_from = dive_number,
+              values_from = presence_absence,
+              names_prefix = "dive_") %>%
+  select(region, everything()) %>% 
+  select(-region, -species) %>% 
+  mutate(across(everything(), as.integer)) %>% 
+  as.matrix() 
+
+conception_pres_abs_matrix <- qual_presence_absence %>%
+  filter(region == "Conception") %>%
+  select(region, starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp")) %>% 
+  mutate(dive_number = row_number()) %>% 
+  pivot_longer(cols = starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "presence_absence") %>% 
+  pivot_wider(names_from = dive_number,
+              values_from = presence_absence,
+              names_prefix = "dive_") %>%
+  select(region, everything()) %>% 
+  select(-region, -species) %>% 
+  mutate(across(everything(), as.integer)) %>% 
+  as.matrix() 
+
+monterey_pres_abs_matrix <- qual_presence_absence %>%
+  filter(region == "Monterey") %>%
+  select(region, starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp")) %>% 
+  mutate(dive_number = row_number()) %>% 
+  pivot_longer(cols = starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "presence_absence") %>% 
+  pivot_wider(names_from = dive_number,
+              values_from = presence_absence,
+              names_prefix = "dive_") %>%
+  select(region, everything()) %>% 
+  select(-region, -species) %>% 
+  mutate(across(everything(), as.integer)) %>% 
+  as.matrix() 
+
+morro_pres_abs_matrix <- qual_presence_absence %>%
+  filter(region == "Morro") %>%
+  select(region, starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp")) %>% 
+  mutate(dive_number = row_number()) %>% 
+  pivot_longer(cols = starts_with("Leucilla_nuttingi"):starts_with("Rhodymenia_spp"),
+               names_to = "species",
+               values_to = "presence_absence") %>% 
+  pivot_wider(names_from = dive_number,
+              values_from = presence_absence,
+              names_prefix = "dive_") %>%
+  select(region, everything()) %>% 
+  select(-region, -species) %>% 
+  mutate(across(everything(), as.integer)) %>% 
+  as.matrix() 
+
+
+pres_abs_matrix_list <- list(Carmel = carmel_pres_abs_matrix,
+                             Conception = conception_pres_abs_matrix, 
+                             Monterey = monterey_pres_abs_matrix,
+                             Morro = morro_pres_abs_matrix)
+```
+
+
+### ignore: try starting over
+```{r}
+out.raw <- iNEXT(pres_abs_matrix_list, 
+                 q = 0, 
+                 datatype="incidence_raw", # type of data
+                 endpoint=25) # num sampling units to 
+ggiNEXT(out.raw, facet.var = "Assemblage")
+```
+## • use specaccum instead of inext
+```{r}
+accum_results <- list()
+
+# Loop through each region in the matrix list
+for (region in names(test_matrix_list)) {
+  # Get the matrix for the current region
+  mat <- test_matrix_list[[region]]
+  
+  # Compute species accumulation
+  accum <- specaccum(mat, method = "rarefaction")
+  
+  # Convert the results to a data frame
+  accum_df <- data.frame(
+    Site = accum$sites,          # Number of sites sampled
+    Species = accum$richness,    # Number of species observed
+    Region = region
+  )
+  
+  # Append the results to the list
+  accum_results[[region]] <- accum_df
+}
+
+# Combine all results into a single data frame
+accum_df_all <- bind_rows(accum_results)
+
+# Plot using ggplot2
+ggplot(accum_df_all, aes(x = Site, y = Species, color = Region, group = Region)) +
+  geom_line() +
+  facet_wrap(~ Region) +
+  labs(title = "Species Accumulation Curves",
+       x = "Number of Qual Sheets",
+       y = "Number of Species Observed") +
+  theme_minimal()
 ```
 
 # NOTES:
 ## possible to-dos
-- make figures for fraction (or %) observed instead of species richness
+- make figures for fraction (or %) observed instead of species richness (maybe useless)
+- species accumulation curves (inext package - can give richness and diversity estimates) 
+    - x axis: # qual sheets per region 
+    - y axis: # species observed 
+    - phase 2- try to include write ins? 
