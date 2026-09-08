@@ -1,0 +1,20 @@
+Site_name,Site_code,Site_number,Dive_site,Scrubby_site,Latitude_2023,Longitude_2023,Latitude_2024,Longitude_2024,Protected_area_2024,Habitat,Depth_avg,Site_notes,2024_data_collected,2024_data_notes
+White_Rock_1,WR1,1,TRUE,FALSE,NA,NA,35.528590,-121.089667,TRUE,Kelp Forest,44,"40-50ft pinnacle, nereo forest, low rock counts ","Water, BAM, DAM",
+White_Rock_2,WR2,2,TRUE,FALSE,NA,NA,35.507968,-121.065233,FALSE,Kelp Forest,38,Nereocystis canopy with Pterygophora and Laminaria understory; lots of schooling rockfish,NA,
+Harmony_Headlands_1,HH1,3,TRUE,TRUE,35.478750,-121.026528,35.478750,-121.026530,FALSE,Kelp Forest,35,Nereocystis canopy with dense Pterygophora understory. Lots of cobbles. Lots of big fish.,"Water, BAM, DAM, Cobble, Scrubber",
+Harmony_Headlands_2,HH2,4,TRUE,TRUE,35.460310,-121.007528,35.457100,-121.001930,FALSE,Kelp Forest,35,"Nereocystis canopy with dense Pterygophora understory. Lots of fish, not so many urchins. ","Water, BAM, DAM, Cobble, Scrubber",
+Outer_Buchon_2,OB2,5,TRUE,TRUE,35.175000,-120.787778,35.174800,-120.788880,FALSE,"Kelp Forest, Rocky Reef",27,Bouldery & crevices with very dead Pterygophora - seems like an urchin barren. Plenty of cobbles. ,"Water, BAM, DAM, Cobble, Scrubber",
+Outer_Buchon_1,OB1,6,TRUE,FALSE,35.178940,-120.807833,35.178780,-120.809350,FALSE,Kelp Forest,39,,"Water, BAM, DAM, Cobble",Only 9 cobbles obtained
+Inner_Buchon_1,IB1,7,TRUE,TRUE,35.237030,-120.891750,35.237030,-120.891750,TRUE,Kelp Forest,46,Initial pinnacle (with abundant red algae & Nereocystis) to descend on; bottom was bouldery with some limited understory,"Water, BAM, DAM, Cobble, Scrubber",
+Inner_Buchon_2,IB2,8,TRUE,FALSE,35.246080,-120.899972,35.246080,-120.899970,TRUE,Kelp Forest,51,"Steep pinnacles, cliffs; descended to 60ft and top of pinnacle in 30ft","Water, BAM, DAM, Cobble",IB2 cobble samples left out of freezer for 24hrs
+Outer_Buchon_3,OB3,9,TRUE,FALSE,35.275361,-120.899250,35.275370,-120.899250,FALSE,Rocky Reef,40,"Shale reef with lots of worms, boring clams, urchins. Minimal kelp (some nereo juveniles). Few cobbles.","Water, BAM, DAM, Cobble",Low cobble count obtained
+Shell_Beach,SB,10,FALSE,FALSE,35.089136,-120.652994,35.154230,-120.691070,FALSE,,,,"Water, BAM",
+Mussel_Point,MP,11,FALSE,FALSE,34.930184,-120.683650,34.930180,-120.687870,FALSE,,,,"Water, BAM",
+Vandenberg,VB,12,FALSE,FALSE,34.725389,-120.642136,34.725380,-120.642130,TRUE,,,,"Water, BAM",
+Destroyer_Rock,DR,13,FALSE,FALSE,34.595944,-120.650194,34.596280,-120.653330,TRUE,,,,"Water, BAM",
+Shearwater_1,SW1,14,TRUE,TRUE,34.537150,-120.547367,34.537170,-120.547370,FALSE,"Kelp Forest, Sandy Bottom",36,Large sand channels dividing rocky ridges (with Pterygophora understory with large Macro individuals spaced out). Low cobble count. ,"Water, BAM, DAM, Cobble, Scrubber",
+Jalama,JA,15,TRUE,TRUE,34.514375,-120.511354,34.495620,-120.503120,FALSE,"Rocky Reef, Sandy Bottom",45,"Sandy & shale bottom with thick kelp understory (Desmarestia, Alaria, Pterygophora). Some Macro. Very few cobbles.","Water, BAM, DAM, Cobble, Scrubber",Limited cobble options
+Shearwater_2,SW2,16,FALSE,FALSE,34.447317,-120.445450,34.447320,-120.495450,TRUE,,,,"Water, BAM",
+Shearwater_3,SW3,17,TRUE,TRUE,34.451367,-120.383100,34.442120,-120.413430,FALSE,"Kelp Forest, Sandy Bottom",47,"Soft bottom Macro forest, shale rocks, 40-50 ft depth","Water, BAM, DAM, Cobble, Scrubber",
+Shearwater_4,SW4,18,TRUE,TRUE,34.451217,-120.359667,34.451220,-120.359670,FALSE,Kelp Forest,47,"Shale bottom covered in exceptionally dense kelp understory (Desmarestia, Alaria, Pterygophora). Limited Macro. Very few cobbles. ","Water, BAM, DAM, Cobble, Scrubber",Cobbles were small with little CCA on them
+Gaviota,GV,19,FALSE,FALSE,34.464150,-120.229417,34.464150,-120.229420,TRUE,,,,"Water, BAM",

@@ -22,6 +22,10 @@ library(iNEXT)
 ## read in data
 ```{r}
 qual_raw <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/kfe_qual_data_entry_240823.xlsx")
+
+qual_coords <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/qual_coords_estimate_240911.xlsx")
+
+chnms_coords <- read_excel("/Users/gwendolyndonahue/Documents/GitHub/gwen-robin/quals/CHNMS_Site_Notes.xlsx")
 ```
 ## phylum assigning
 ```{r}
@@ -187,7 +191,51 @@ qual_CHNMS_limited <- qual_CHNMS %>%
             dive_duration_min, visibility_ft, bedrock, boulder, cobble, sand,
             others_seen, notes_site, notes_other))
 ```
-# CHNMS plots
+# CHNMS 2024 report plots
+## Simple map with coords
+```{r}
+library("sf")
+library("rnaturalearth")
+library("rnaturalearthdata")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+class(world)
+
+chnms_coords_limited <- chnms_coords %>% 
+  mutate("Site Type" = ifelse(Dive_site == TRUE, "Dive Site", "Non Dive Site")) %>%
+  select(c(Site_name, "Site Type", Latitude_2024, Longitude_2024)) %>% 
+  rename(Latitude=Latitude_2024, Longitude=Longitude_2024)
+
+loadfonts(device = "mac")
+
+muted_rainbow <- c( "#8B0000", "#1E90FF", "#006400", "#FF8C00", "#B8860B",
+  "#8B4513", "#C71585", "#00008B", "#228B22", "#D2691E", 
+  "#9ACD32", "#CD5C5C", "#A52A2A", "#FFD700", "#2F4F4F", 
+  "#4B0082", "#8A2BE2", "#B22222", "#20B2AA")
+
+ggplot(data = world) +
+    geom_sf(fill = "blue") +  
+    geom_sf(data = world, fill = "gray17") +  
+    geom_point(data = chnms_coords_limited, 
+               aes(x = Longitude, y = Latitude, 
+                   color = Site_name, 
+                   shape = `Site Type`),  
+               size = 3) +  
+    coord_sf(xlim = c(-121.5, -119.5), 
+             ylim = c(34.3, 35.6),        
+             expand = FALSE) +  
+    scale_color_manual(values = muted_rainbow) +  
+    scale_shape_manual(values = c("Dive Site" = 16, "Non Dive Site" = 15)) +  
+    theme_minimal() + 
+    theme(legend.title = element_blank(), 
+          legend.position = "none", 
+          legend.key = element_blank(),
+          legend.box.background = element_blank(),
+          text = element_text(family = "Times New Roman", size = 16, color = "#000000"))
+ggsave("/Users/gwendolyndonahue/Desktop/chnms2024_coordmap.png", 
+       width=12, height=7)
+```
+# All CHNMS plots
 ## • MDS plots including all data
 ### - 1. set up mds clustering
 ```{r}
@@ -554,6 +602,7 @@ ggplot(CHNMS_2024_richness,
 
 ```
 ## • TO DO: kelp vs urchins (look at HH and Buchon)
+
 # All qual sheets (both CHNMS and Monterey and Carmel)
 ## • set up data
 ### - general cleaning
@@ -861,7 +910,7 @@ pres_abs_matrix_list <- list(Carmel = carmel_pres_abs_matrix,
 ```
 
 
-### ignore: try starting over
+## • iNEXT plot
 ```{r}
 out.raw <- iNEXT(pres_abs_matrix_list, 
                  q = 0, 
@@ -869,33 +918,24 @@ out.raw <- iNEXT(pres_abs_matrix_list,
                  endpoint=25) # num sampling units to 
 ggiNEXT(out.raw, facet.var = "Assemblage")
 ```
-## • use specaccum instead of inext
+## • specaccum plot
 ```{r}
 accum_results <- list()
 
-# Loop through each region in the matrix list
+#go thru each region, find species accum, add that df to list
 for (region in names(test_matrix_list)) {
-  # Get the matrix for the current region
-  mat <- test_matrix_list[[region]]
-  
-  # Compute species accumulation
-  accum <- specaccum(mat, method = "rarefaction")
-  
-  # Convert the results to a data frame
-  accum_df <- data.frame(
-    Site = accum$sites,          # Number of sites sampled
-    Species = accum$richness,    # Number of species observed
-    Region = region
-  )
-  
-  # Append the results to the list
-  accum_results[[region]] <- accum_df
-}
+  mat <- test_matrix_list[[region]] #current region's matrix
+  accum <- specaccum(mat, method = "rarefaction") #calculate species accum
+  # turn results into a df
+  accum_df <- data.frame( 
+    Site = accum$sites,       
+    Species = accum$richness,  
+    Region = region)
+  # add to  list
+  accum_results[[region]] <- accum_df}
 
-# Combine all results into a single data frame
 accum_df_all <- bind_rows(accum_results)
 
-# Plot using ggplot2
 ggplot(accum_df_all, aes(x = Site, y = Species, color = Region, group = Region)) +
   geom_line() +
   facet_wrap(~ Region) +
